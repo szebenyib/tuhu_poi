@@ -1,5 +1,6 @@
 library(XML)
 library(dplyr)
+library(stringr)
 library(assertthat)
 
 url <- "http://turistautak.hu/poi.php?lap=1&egylapon=500&submit_egylapon=OK&dist_lat=&dist_lon=&poi_any=&poi_nickname=&poi_fulldesc=&poi_placer=&poi_city=&poi_member=&poi_alt_min=&poi_alt_max=&poi_dateposted_min=&poi_dateposted_max=&poi_dist_min=&poi_dist_max=&code[]=41477&login_user_id=42001&no_caches=i&action=browse"
@@ -51,10 +52,49 @@ for (i in from_page:to_page) {
   poi_table <- rbind(poi_table,
                      tmp_table)
 }
-
+#Remove leftover
+rm(tables)
 #Check that really everything has been downloaded
 assert_that(number_of_records_to_get == dim(poi_table)[1])
 
 pois %>% group_by(felhasznalo) %>% summarise(darab = n()) %>% arrange(desc(darab))
 
 pois %>% group_by(megye) %>% summarise(darab = n()) %>% arrange(desc(darab))
+
+#Remove invalid
+poi_table <- poi_table %>% slice(c(1:947, 949:dim(poi_table)[1]))
+poi_bak <- poi_table
+poi_table <- poi_table %>%
+  separate(col = koo,
+           into = c("lat", "lon"),
+           sep = "\n") %>%
+  separate(col = lat,
+           into = c("lat_deg", "lat_dec"),
+           sep = " ") %>%
+  separate(col = lon,
+           into = c("lon_deg", "lon_dec"),
+           sep = " ") %>%
+  mutate(lat_deg = as.numeric(substr(x = lat_deg,
+                                     start = 1,
+                                     stop = 2))) %>%
+  mutate(lon_deg = as.numeric(substr(x = lon_deg,
+                                     start = 1,
+                                     stop = 2))) %>%
+  mutate(lat_dec = substr(x = lat_dec,
+                          start = 1,
+                          stop = 5)) %>%
+  mutate(lat_dec = as.numeric(sub(pattern = ",",
+                                  replacement = ".",
+                                  lat_dec))) %>%
+  mutate(lat_dec = lat_dec / 60) %>%
+  mutate(lon_dec = substr(x = lon_dec,
+                          start = 1,
+                          stop = 5)) %>%
+  mutate(lon_dec = as.numeric(sub(pattern = ",",
+                                  replacement = ".",
+                                  lon_dec))) %>%
+  mutate(lon_dec = lon_dec / 60) %>%
+  mutate(lat = lat_deg + lat_dec) %>%
+  mutate(lon = lon_deg + lon_dec) %>%
+  select(-lat_deg, -lat_dec, -lon_deg, -lon_dec)
+  
