@@ -48,7 +48,7 @@ for (i in from_page:to_page) {
   tmp_table <- tmp_table %>%
     filter(!is.na(nev)) %>%
     filter(nev != "Neve") %>%
-    select(-1, -9)
+    select(-jel, -tav)
   poi_table <- rbind(poi_table,
                      tmp_table)
 }
@@ -62,7 +62,10 @@ pois %>% group_by(felhasznalo) %>% summarise(darab = n()) %>% arrange(desc(darab
 pois %>% group_by(megye) %>% summarise(darab = n()) %>% arrange(desc(darab))
 
 #Remove invalid
-poi_table <- poi_table %>% slice(c(1:947, 949:dim(poi_table)[1]))
+poi_table <- poi_table %>%
+  filter(koo != "N 00° 0,000'\nE 00° 0,000'")
+
+#Temp storage to avoid redownload of data
 poi_bak <- poi_table
 poi_table <- poi_table %>%
   separate(col = koo,
