@@ -3,7 +3,11 @@ library(dplyr)
 library(tidyr)
 library(stringr)
 library(assertthat)
+library(lubridate)
 
+#Symbol to use
+geocaching_user_id <- "42001"
+sym <- "education-daycare"
 url <- "http://turistautak.hu/poi.php?lap=1&egylapon=500&submit_egylapon=OK&dist_lat=&dist_lon=&poi_any=&poi_nickname=&poi_fulldesc=&poi_placer=&poi_city=&poi_member=&poi_alt_min=&poi_alt_max=&poi_dateposted_min=&poi_dateposted_max=&poi_dist_min=&poi_dist_max=&code[]=41477&login_user_id=42001&no_caches=i&action=browse"
 
 #Check
@@ -100,5 +104,52 @@ poi_table <- poi_table %>%
   mutate(lon_dec = lon_dec / 60) %>%
   mutate(lat = lat_deg + lat_dec) %>%
   mutate(lon = lon_deg + lon_dec) %>%
+  mutate(lat = round(lat,
+                     digits = 4)) %>%
+  mutate(lon = round(lon,
+                     digits = 4)) %>%
   select(-lat_deg, -lat_dec, -lon_deg, -lon_dec)
   
+header <- paste("<?xml version=\"1.0\" encoding=\"utf-8\" standalone=\"yes\"?>\n",
+  "<gpx version=\"1.0\" creator=\"Locus Android\"\n",
+  "  xmlns=\"http://www.topografix.com/GPX/1/0\"\n",
+  "  xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"\n",
+  "  xmlns:locus=\"http://www.locusmap.eu\"\n",
+  "  xsi:schemaLocation=\"http://www.topografix.com/GPX/1/0\n",
+  "  http://www.topografix.com/GPX/1/0/gpx.xsd\">\n",
+  "<metadata>\n",
+  "  <desc>File with points/tracks from Locus Pro/3.9.3</desc>\n",
+  "</metadata>\n",
+  sep = "")
+footer <- paste("</gpx>")
+utc_stamp <- with_tz(time = now(),
+                     tzone = "Europe/London")
+utc_stamp <- floor_date(x = utc_stamp,
+                        unit = "second")
+utc_stamp <- paste(year(utc_stamp),"-",
+                   sprintf("%02d", month(utc_stamp)), "-", 
+                   sprintf("%02d", day(utc_stamp)), "T",
+                   sprintf("%02d", hour(utc_stamp)), ":",
+                   sprintf("%02d", minute(utc_stamp)), ":",
+                   sprintf("%02d", second(utc_stamp)), "Z",
+                   sep = "")
+content <- paste("<wpt lat=\"", poi_table[1, "lat"], "\" ",
+                 "lon=\"", poi_table[1, "lon"], "\">\n",
+                 "  <ele>96.00</ele>\n",
+                 "  <time>", utc_stamp, "</time>\n",
+                 "  <name><![CDATA[", poi_table[1, "nev"], "]]></name>\n",
+                 "  <desc><![CDATA[", poi_table[1, "fenykep"], "]]></desc>\n",
+                 "  <url>", "http://web.com", "</url>\n",
+                 "  <sym>", sym, "</sym>\n",
+                 "</wpt>",
+                   sep = "")
+
+write(x = header,
+      file = "poi.gpx",
+      append = FALSE)
+write(x = content,
+      file = "poi.gpx",
+      append = TRUE)
+write(x = footer,
+      file = "poi.gpx",
+      append = TRUE)
