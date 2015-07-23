@@ -1,14 +1,22 @@
 library(XML)
 library(dplyr)
 library(tidyr)
-library(stringr)
 library(assertthat)
 library(lubridate)
+library(stringr)
 
 #Symbol to use
 geocaching_user_id <- "42001"
 sym <- "education-daycare"
-url <- "http://turistautak.hu/poi.php?lap=1&egylapon=500&submit_egylapon=OK&dist_lat=&dist_lon=&poi_any=&poi_nickname=&poi_fulldesc=&poi_placer=&poi_city=&poi_member=&poi_alt_min=&poi_alt_max=&poi_dateposted_min=&poi_dateposted_max=&poi_dist_min=&poi_dist_max=&code[]=41477&login_user_id=42001&no_caches=i&action=browse"
+url <- paste("http://turistautak.hu/poi.php?lap=1&egylapon=500",
+             "&submit_egylapon=OK&dist_lat=&dist_lon=&poi_any=",
+             "&poi_nickname=&poi_fulldesc=&poi_placer=&poi_city=&poi_member=",
+             "&poi_alt_min=&poi_alt_max=&poi_dateposted_min=",
+             "&poi_dateposted_max=&poi_dist_min=&",
+             "poi_dist_max=&code[]=41477&login_user_id=",
+             geocaching_user_id,
+             "&no_caches=i&action=browse",
+             sep = "")
 
 #Check
 raw_page <- htmlTreeParse(url,
@@ -42,11 +50,13 @@ for (i in from_page:to_page) {
   "&poi_nickname=&poi_fulldesc=&poi_placer=&poi_city=&poi_member=",
   "&poi_alt_min=&poi_alt_max=&poi_dateposted_min=&poi_dateposted_max=",
   "&poi_dist_min=&poi_dist_max=&code[]=41477&login_user_id=",
-  "42001&no_caches=i&action=browse",
+  geocaching_user_id,
+  "&no_caches=i&action=browse",
   sep = "")
   tables <- readHTMLTable(url,
-                          encoding = "UTF8")#,
-#                          stringsAsFactors = FALSE)
+                          encoding = "UTF8",
+                          stringsAsFactors = FALSE,
+                          na.strings = c("", " ", "NA", "&nbsp;"))
   tmp_table <- tbl_df(tables[[3]])
   colnames(tmp_table) <- c("jel", "nev", "telepules", "megye", "bejelentes",
                            "magassag", "felhasznalo", "koo", "tav", "fenykep")
@@ -72,6 +82,12 @@ poi_table <- poi_table %>%
 
 #Temp storage to avoid redownload of data
 poi_bak <- poi_table
+#Name space trimming
+poi_table <- poi_table %>%
+  mutate(nev = substr(x = nev,
+                      start = 1,
+                      stop = str_length(nev) - 1))
+#Coordinate transformation
 poi_table <- poi_table %>%
   separate(col = koo,
            into = c("lat", "lon"),
@@ -109,6 +125,9 @@ poi_table <- poi_table %>%
   mutate(lon = round(lon,
                      digits = 4)) %>%
   select(-lat_deg, -lat_dec, -lon_deg, -lon_dec)
+#Photos are filled with zero if they are empty
+poi_table <- poi_table %>%
+  mutate(fenykep = as.numeric(fenykep))
   
 header <- paste("<?xml version=\"1.0\" encoding=\"utf-8\" standalone=\"yes\"?>\n",
   "<gpx version=\"1.0\" creator=\"Locus Android\"\n",
@@ -118,7 +137,7 @@ header <- paste("<?xml version=\"1.0\" encoding=\"utf-8\" standalone=\"yes\"?>\n
   "  xsi:schemaLocation=\"http://www.topografix.com/GPX/1/0\n",
   "  http://www.topografix.com/GPX/1/0/gpx.xsd\">\n",
   "<metadata>\n",
-  "  <desc>File with points/tracks from Locus Pro/3.9.3</desc>\n",
+  "  <desc>Grabbed from turistautak.hu</desc>\n",
   "</metadata>\n",
   sep = "")
 footer <- paste("</gpx>")
@@ -138,7 +157,7 @@ content <- paste("<wpt lat=\"", poi_table[1, "lat"], "\" ",
                  "  <ele>96.00</ele>\n",
                  "  <time>", utc_stamp, "</time>\n",
                  "  <name><![CDATA[", poi_table[1, "nev"], "]]></name>\n",
-                 "  <desc><![CDATA[", poi_table[1, "fenykep"], "]]></desc>\n",
+                 "  <desc><![CDATA[Fényképek: ", poi_table[1, "fenykep"], "]]></desc>\n",
                  "  <url>", "http://web.com", "</url>\n",
                  "  <sym>", sym, "</sym>\n",
                  "</wpt>",
