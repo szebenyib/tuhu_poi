@@ -7,7 +7,7 @@ library(stringr)
 
 #Symbol to use
 geocaching_user_id <- "42001"
-sym <- "education-daycare"
+sym <- "tourism-drinkingwater"
 url <- paste("http://turistautak.hu/poi.php?lap=1&egylapon=500",
              "&submit_egylapon=OK&dist_lat=&dist_lon=&poi_any=",
              "&poi_nickname=&poi_fulldesc=&poi_placer=&poi_city=&poi_member=",
@@ -64,6 +64,14 @@ for (i in from_page:to_page) {
     filter(!is.na(nev)) %>%
     filter(nev != "Neve") %>%
     select(-jel, -tav)
+  raw_page <- htmlTreeParse(url,
+                            useInternalNodes = TRUE,
+                            encoding = "UTF8")
+  poi_link <- xpathSApply(doc = raw_page,
+                          "//a[@class='nal a10']",
+                          xmlGetAttr, 'href')
+  tmp_table <- cbind(tmp_table,
+                     poi_link)
   poi_table <- rbind(poi_table,
                      tmp_table)
 }
@@ -138,7 +146,7 @@ header <- paste("<?xml version=\"1.0\" encoding=\"utf-8\" standalone=\"yes\"?>\n
   "  http://www.topografix.com/GPX/1/0/gpx.xsd\">\n",
   "<metadata>\n",
   "  <desc>Grabbed from turistautak.hu</desc>\n",
-  "</metadata>\n",
+  "</metadata>",
   sep = "")
 footer <- paste("</gpx>")
 utc_stamp <- with_tz(time = now(),
@@ -152,16 +160,21 @@ utc_stamp <- paste(year(utc_stamp),"-",
                    sprintf("%02d", minute(utc_stamp)), ":",
                    sprintf("%02d", second(utc_stamp)), "Z",
                    sep = "")
-content <- paste("<wpt lat=\"", poi_table[1, "lat"], "\" ",
-                 "lon=\"", poi_table[1, "lon"], "\">\n",
-                 "  <ele>96.00</ele>\n",
-                 "  <time>", utc_stamp, "</time>\n",
-                 "  <name><![CDATA[", poi_table[1, "nev"], "]]></name>\n",
-                 "  <desc><![CDATA[Fényképek: ", poi_table[1, "fenykep"], "]]></desc>\n",
-                 "  <url>", "http://web.com", "</url>\n",
-                 "  <sym>", sym, "</sym>\n",
-                 "</wpt>",
-                   sep = "")
+content <- NULL
+for (i in 1:dim(poi_table)[1]) {
+  content <- c(content, 
+               paste("<wpt lat=\"", poi_table[i, "lat"], "\" ",
+                   "lon=\"", poi_table[i, "lon"], "\">\n",
+                   #                 "  <ele>96.00</ele>\n",
+                   "  <time>", utc_stamp, "</time>\n",
+                   "  <name><![CDATA[", poi_table[i, "nev"], "]]></name>\n",
+                   "  <desc><![CDATA[Fényképek: ", poi_table[i, "fenykep"], "]]></desc>\n",
+                   "  <url>http://www.turistautak.hu", poi_table[i, "poi_link"], "</url>\n",
+                   "  <sym>", sym, "</sym>\n",
+                   "</wpt>",
+                   sep = ""))  
+}
+
 
 write(x = header,
       file = "poi.gpx",
