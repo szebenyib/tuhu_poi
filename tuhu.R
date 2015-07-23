@@ -123,7 +123,7 @@ header <- paste("<?xml version=\"1.0\" encoding=\"utf-8\" standalone=\"yes\"?>\n
   sep = "")
 footer <- paste("</gpx>")
 utc_stamp <- with_tz(time = now(),
-                     tzone = "Europe/London")
+                     tzone = "UTC")
 utc_stamp <- floor_date(x = utc_stamp,
                         unit = "second")
 utc_stamp <- paste(year(utc_stamp),"-",
