@@ -1,5 +1,6 @@
 library(XML)
 library(dplyr)
+library(tidyr)
 library(stringr)
 library(assertthat)
 
