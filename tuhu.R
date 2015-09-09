@@ -175,7 +175,7 @@ for (i in 1:dim(poi_table)[1]) {
                    sep = ""))  
 }
 
-
+#Output contents to poi.gpx.
 write(x = header,
       file = "poi.gpx",
       append = FALSE)
